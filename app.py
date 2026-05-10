@@ -1,29 +1,35 @@
 import streamlit as st
 import pickle
 
-# Load trained AI
-with open("qtable.npy","rb") as f:
+# ---------------- PAGE SETTINGS ----------------
+st.set_page_config(
+    page_title="RL Tic Tac Toe",
+    page_icon="🎮",
+    layout="centered"
+)
+
+# ---------------- LOAD Q TABLE ----------------
+with open("qtable.npy", "rb") as f:
     q_table = pickle.load(f)
 
-# Empty cells
+# ---------------- FUNCTIONS ----------------
 def available_moves(board):
     return [i for i in range(9) if board[i] == " "]
 
-# Best AI move
+
 def get_best_move(board):
 
     state = str(board)
 
     moves = available_moves(board)
 
-    qs = [q_table.get((state,a),0)
-          for a in moves]
+    qs = [q_table.get((state, a), 0) for a in moves]
 
     max_q = max(qs)
 
     return moves[qs.index(max_q)]
 
-# Winner check
+
 def check_winner(board, player):
 
     wins = [
@@ -38,48 +44,120 @@ def check_winner(board, player):
     ]
 
     for w in wins:
-        if all(board[i]==player for i in w):
+        if all(board[i] == player for i in w):
             return True
 
     return False
 
-# Title
-st.title("Tic Tac Toe RL AI")
 
-# Create board
+# ---------------- SESSION STATES ----------------
 if "board" not in st.session_state:
     st.session_state.board = [" "] * 9
 
+if "player_score" not in st.session_state:
+    st.session_state.player_score = 0
+
+if "ai_score" not in st.session_state:
+    st.session_state.ai_score = 0
+
+if "draw_score" not in st.session_state:
+    st.session_state.draw_score = 0
+
+if "game_over" not in st.session_state:
+    st.session_state.game_over = False
+
+if "message" not in st.session_state:
+    st.session_state.message = ""
+
 board = st.session_state.board
 
-# Create buttons
-cols = st.columns(3)
+# ---------------- TITLE ----------------
+st.title("🎮 Tic Tac Toe RL AI")
 
-for i in range(9):
+# ---------------- SCOREBOARD ----------------
+col1, col2, col3 = st.columns(3)
 
-    if cols[i%3].button(board[i], key=i):
+col1.metric("🧑 You", st.session_state.player_score)
+col2.metric("🤖 AI", st.session_state.ai_score)
+col3.metric("🤝 Draw", st.session_state.draw_score)
 
-        if board[i] == " ":
+st.write("")
 
-            # User move
-            board[i] = "X"
+# ---------------- GAME BOARD ----------------
+for row in range(3):
 
-            # User wins
-            if check_winner(board,"X"):
-                st.success("You Win!")
-                st.stop()
+    cols = st.columns(3)
 
-            # AI move
-            if len(available_moves(board)) > 0:
+    for col in range(3):
 
-                ai = get_best_move(board)
+        i = row * 3 + col
 
-                board[ai] = "O"
+        if cols[col].button(board[i], key=i):
 
-                # AI wins
-                if check_winner(board,"O"):
-                    st.error("AI Wins!")
+            if board[i] == " " and not st.session_state.game_over:
 
-# Restart button
-if st.button("Restart"):
+                # USER MOVE
+                board[i] = "X"
+
+                # USER WIN
+                if check_winner(board, "X"):
+
+                    st.session_state.player_score += 1
+                    st.session_state.game_over = True
+                    st.session_state.message = "🎉 You Win!"
+
+                # DRAW
+                elif len(available_moves(board)) == 0:
+
+                    st.session_state.draw_score += 1
+                    st.session_state.game_over = True
+                    st.session_state.message = "🤝 Match Draw!"
+
+                else:
+
+                    # AI MOVE
+                    ai_move = get_best_move(board)
+
+                    board[ai_move] = "O"
+
+                    # AI WIN
+                    if check_winner(board, "O"):
+
+                        st.session_state.ai_score += 1
+                        st.session_state.game_over = True
+                        st.session_state.message = "🤖 AI Wins!"
+
+                    # DRAW
+                    elif len(available_moves(board)) == 0:
+
+                        st.session_state.draw_score += 1
+                        st.session_state.game_over = True
+                        st.session_state.message = "🤝 Match Draw!"
+
+# ---------------- RESULT MESSAGE ----------------
+if st.session_state.message:
+    st.subheader(st.session_state.message)
+
+st.write("")
+
+# ---------------- RESTART BUTTON ----------------
+if st.button("🔄 Restart Game"):
+
     st.session_state.board = [" "] * 9
+    st.session_state.game_over = False
+    st.session_state.message = ""
+
+    st.rerun()
+
+# ---------------- RESET SCOREBOARD ----------------
+if st.button("🗑 Reset Scoreboard"):
+
+    st.session_state.player_score = 0
+    st.session_state.ai_score = 0
+    st.session_state.draw_score = 0
+
+    st.session_state.board = [" "] * 9
+    st.session_state.game_over = False
+    st.session_state.message = ""
+
+    st.rerun()
